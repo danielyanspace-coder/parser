@@ -15,19 +15,17 @@ android {
         versionName = "1.0"
 
         // === License server configuration ===
-        // Set the public URL of your license server (from server/server.js).
-        buildConfigField(
-            "String",
-            "SERVER_URL",
-            "\"https://your-server.example.com\""
-        )
-        // Paste the base64 public key printed by the server on startup
-        // (or open <server>/admin/pubkey). Leases are verified against this key.
-        buildConfigField(
-            "String",
-            "LICENSE_PUBLIC_KEY",
-            "\"PASTE_YOUR_SERVER_PUBLIC_KEY_HERE\""
-        )
+        // SERVER_URL can be overridden at build time with -PserverUrl=...
+        // (used for the permanent domain, e.g. https://sms.alfa-vpn.ru).
+        val serverUrl = (project.findProperty("serverUrl") as String?)
+            ?: "https://your-server.example.com"
+        // The server's public key (stable as long as server/data/keys.json is
+        // kept). Overridable with -PlicenseKey=...
+        val licenseKey = (project.findProperty("licenseKey") as String?)
+            ?: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+/8SgSzWA2a/NQu2uDH0vBgaY4M4VWtAnUPkkUXyw+VWeSxJVx7BCSzdPYthzC/LKr/+zi7xLBdnYzA60iqZEQ=="
+
+        buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
+        buildConfigField("String", "LICENSE_PUBLIC_KEY", "\"$licenseKey\"")
     }
 
     buildTypes {
@@ -44,6 +42,9 @@ android {
             )
             // Distributable build: a valid token from your server is required.
             buildConfigField("boolean", "LICENSE_ENFORCED", "true")
+            // Sign with the debug key so the release APK is installable when
+            // distributed outside the Play Store (sideloaded).
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
