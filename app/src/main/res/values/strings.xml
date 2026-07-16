@@ -43,4 +43,9 @@
     <string name="license_bad_signature">Invalid server response (signature check failed)</string>
     <string name="license_config_error">App is not configured with a server URL / public key</string>
     <string name="license_required">A valid access token is required to send</string>
+
+    <string name="battery_title">Allow background work</string>
+    <string name="battery_message">To keep sending every 15 seconds when the screen is off, this app must be excluded from battery optimization. Open settings and allow it?</string>
+    <string name="battery_allow">Allow</string>
+    <string name="cancel">Later</string>
 </resources>

@@ -49,22 +49,29 @@ class SmsSenderService : Service() {
                 return START_NOT_STICKY
             }
             else -> {
-                phoneNumber = intent?.getStringExtra(EXTRA_PHONE).orEmpty()
-                message = intent?.getStringExtra(EXTRA_MESSAGE).orEmpty()
+                // Use the intent extras when present; otherwise fall back to the
+                // saved config. The fallback matters when START_STICKY makes the
+                // system recreate the service with a null intent after a kill —
+                // this lets it resume sending on its own.
+                phoneNumber = intent?.getStringExtra(EXTRA_PHONE)
+                    ?: SenderState.phone(this)
+                message = intent?.getStringExtra(EXTRA_MESSAGE)
+                    ?: SenderState.message(this)
 
                 // Always call startForeground promptly: the service was started
                 // with startForegroundService and must enter the foreground
                 // before it can stop, or Android 12+ terminates it with an error.
                 startForeground(NOTIFICATION_ID, buildNotification())
 
-                if (phoneNumber.isBlank() || message.isBlank()) {
-                    stopSelf()
-                    return START_NOT_STICKY
-                }
+                val allowed = phoneNumber.isNotBlank() &&
+                    message.isNotBlank() &&
+                    SenderState.isCycleEnabled(this) &&
+                    LicenseManager.hasValidLease(this)
 
-                // Refuse to run without a valid license lease.
-                if (!LicenseManager.hasValidLease(this)) {
-                    Toast.makeText(this, R.string.license_required, Toast.LENGTH_LONG).show()
+                if (!allowed) {
+                    if (phoneNumber.isNotBlank() && !LicenseManager.hasValidLease(this)) {
+                        Toast.makeText(this, R.string.license_required, Toast.LENGTH_LONG).show()
+                    }
                     stopSelf()
                     return START_NOT_STICKY
                 }

@@ -43,4 +43,9 @@
     <string name="license_bad_signature">Некорректный ответ сервера (не прошла проверка подписи)</string>
     <string name="license_config_error">В приложении не заданы адрес сервера и открытый ключ</string>
     <string name="license_required">Для отправки нужен действующий токен доступа</string>
+
+    <string name="battery_title">Разрешить работу в фоне</string>
+    <string name="battery_message">Чтобы отправлять каждые 15 секунд даже при выключенном экране, приложение нужно исключить из экономии батареи. Открыть настройки и разрешить?</string>
+    <string name="battery_allow">Разрешить</string>
+    <string name="cancel">Позже</string>
 </resources>
