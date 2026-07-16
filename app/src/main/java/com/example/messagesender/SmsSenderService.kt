@@ -40,6 +40,9 @@ class SmsSenderService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                // A real user stop (notification button or the Stop button):
+                // end the automatic cycle completely.
+                SenderState.setCycleEnabled(this, false)
                 stopSelf()
                 return START_NOT_STICKY
             }

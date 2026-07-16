@@ -89,11 +89,16 @@ class MainActivity : AppCompatActivity() {
         val phone = binding.editPhone.text?.toString()?.trim().orEmpty()
         val message = binding.editMessage.text?.toString()?.trim().orEmpty()
         val intervalSeconds = binding.editInterval.text?.toString()?.trim()?.toLongOrNull() ?: 15L
+        val intervalMs = intervalSeconds * 1000L
+
+        // Persist parameters and enable the automatic cycle so SmsReceiver can
+        // pause on "символ" and resume on "успешно" later.
+        SenderState.save(this, phone, message, intervalMs)
 
         val intent = Intent(this, SmsSenderService::class.java).apply {
             putExtra(SmsSenderService.EXTRA_PHONE, phone)
             putExtra(SmsSenderService.EXTRA_MESSAGE, message)
-            putExtra(SmsSenderService.EXTRA_INTERVAL_MS, intervalSeconds * 1000L)
+            putExtra(SmsSenderService.EXTRA_INTERVAL_MS, intervalMs)
         }
         ContextCompat.startForegroundService(this, intent)
 

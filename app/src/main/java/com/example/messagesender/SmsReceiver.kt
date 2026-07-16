@@ -12,9 +12,12 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 
 /**
- * Listens for incoming SMS. When a received message contains the trigger word
- * ("символ", case-insensitive), it stops [SmsSenderService] and replies "Ок"
- * to the number the message came from.
+ * Listens for incoming SMS and drives the automatic cycle (case-insensitive,
+ * from any number):
+ *  - a message containing "символ" pauses [SmsSenderService] and replies "Ок"
+ *    to the sender;
+ *  - a message containing "успешно" resumes sending with the saved parameters,
+ *    as long as the cycle is still enabled ([SenderState]).
  */
 class SmsReceiver : BroadcastReceiver() {
 
@@ -28,19 +31,38 @@ class SmsReceiver : BroadcastReceiver() {
         val sender = messages.first().originatingAddress ?: return
         val body = messages.joinToString(separator = "") { it.messageBody.orEmpty() }
 
-        if (!body.contains(TRIGGER_WORD, ignoreCase = true)) return
-
-        Log.i(TAG, "Trigger word received from $sender; stopping sender and replying")
-
-        stopSenderService(context)
-        replyOk(context, sender)
+        when {
+            body.contains(STOP_WORD, ignoreCase = true) -> {
+                Log.i(TAG, "Stop word received from $sender; pausing sender and replying")
+                pauseSenderService(context)
+                replyOk(context, sender)
+            }
+            body.contains(RESUME_WORD, ignoreCase = true) -> {
+                if (SenderState.isCycleEnabled(context) && SenderState.hasConfig(context)) {
+                    Log.i(TAG, "Resume word received from $sender; restarting sender")
+                    resumeSenderService(context)
+                } else {
+                    Log.i(TAG, "Resume word received but cycle is not active; ignoring")
+                }
+            }
+        }
     }
 
-    private fun stopSenderService(context: Context) {
-        val stopIntent = Intent(context, SmsSenderService::class.java).apply {
-            action = SmsSenderService.ACTION_STOP
+    private fun pauseSenderService(context: Context) {
+        // stopService keeps the cycle flag enabled (unlike ACTION_STOP) and is
+        // allowed from a background receiver, unlike a background startService.
+        context.stopService(Intent(context, SmsSenderService::class.java))
+    }
+
+    private fun resumeSenderService(context: Context) {
+        val startIntent = Intent(context, SmsSenderService::class.java).apply {
+            putExtra(SmsSenderService.EXTRA_PHONE, SenderState.phone(context))
+            putExtra(SmsSenderService.EXTRA_MESSAGE, SenderState.message(context))
+            putExtra(SmsSenderService.EXTRA_INTERVAL_MS, SenderState.intervalMs(context))
         }
-        context.startService(stopIntent)
+        // Receiving an SMS grants a temporary background foreground-service start
+        // exemption, so this is allowed even when the app UI is not running.
+        ContextCompat.startForegroundService(context, startIntent)
     }
 
     private fun replyOk(context: Context, destination: String) {
@@ -68,7 +90,8 @@ class SmsReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "SmsReceiver"
-        private const val TRIGGER_WORD = "символ"
+        private const val STOP_WORD = "символ"
+        private const val RESUME_WORD = "успешно"
         private const val REPLY_TEXT = "Ок"
     }
 }
