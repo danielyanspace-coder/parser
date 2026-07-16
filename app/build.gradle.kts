@@ -31,12 +31,19 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Test build: licensing is bypassed so the app can be installed and
+            // tried on your own phone without a running license server.
+            buildConfigField("boolean", "LICENSE_ENFORCED", "false")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Distributable build: a valid token from your server is required.
+            buildConfigField("boolean", "LICENSE_ENFORCED", "true")
         }
     }
 

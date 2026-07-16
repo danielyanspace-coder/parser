@@ -46,8 +46,11 @@ object LicenseManager {
 
     fun leaseExp(context: Context): Long = prefs(context).getLong(KEY_LEASE_EXP, 0L)
 
-    fun hasValidLease(context: Context): Boolean =
-        leaseExp(context) > System.currentTimeMillis()
+    fun hasValidLease(context: Context): Boolean {
+        // Debug/test builds bypass licensing so the app works without a server.
+        if (!BuildConfig.LICENSE_ENFORCED) return true
+        return leaseExp(context) > System.currentTimeMillis()
+    }
 
     /** Clears the cached lease (but keeps the token so the user can retry). */
     fun clearLease(context: Context) {
