@@ -66,19 +66,33 @@ let db = loadDb();
 // Signing keys (generated once, reused across restarts).
 // ---------------------------------------------------------------------------
 
+function keysFromPrivatePem(privateKeyPem) {
+  const publicKey = crypto.createPublicKey(crypto.createPrivateKey(privateKeyPem));
+  const publicKeyDerB64 = publicKey.export({ type: 'spki', format: 'der' }).toString('base64');
+  return { privateKeyPem, publicKeyDerB64 };
+}
+
 function loadOrCreateKeys() {
+  // Preferred on hosts with an ephemeral filesystem (Render/Railway/etc.):
+  // provide the signing key via an env var so it stays stable across restarts
+  // and the public key embedded in the app never changes.
+  if (process.env.SIGNING_PRIVATE_KEY_B64) {
+    const pem = Buffer.from(process.env.SIGNING_PRIVATE_KEY_B64, 'base64').toString('utf8');
+    console.log('Using signing key from SIGNING_PRIVATE_KEY_B64');
+    return keysFromPrivatePem(pem);
+  }
+
   ensureDataDir();
   if (fs.existsSync(KEYS_FILE)) {
     return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
   }
-  const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', {
-    namedCurve: 'P-256',
-  });
+  const { privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
   const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
-  const publicKeyDerB64 = publicKey.export({ type: 'spki', format: 'der' }).toString('base64');
-  const keys = { privateKeyPem, publicKeyDerB64 };
+  const keys = keysFromPrivatePem(privateKeyPem);
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
   console.log('Generated new signing key pair in data/keys.json');
+  console.log('To keep this key stable on an ephemeral host, set this env var:');
+  console.log('SIGNING_PRIVATE_KEY_B64=' + Buffer.from(privateKeyPem).toString('base64'));
   return keys;
 }
 
