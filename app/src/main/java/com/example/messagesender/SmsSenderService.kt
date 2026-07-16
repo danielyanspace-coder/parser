@@ -11,27 +11,29 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.telephony.SmsManager
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 
 /**
- * Foreground service that sends a user-provided SMS message to a user-provided
- * phone number on a fixed interval until it is stopped.
+ * Foreground service that sends the message to the target number every
+ * [INTERVAL_MS] milliseconds until it is stopped. A partial wake lock keeps the
+ * CPU awake so the 15-second loop keeps firing even when the screen is off.
  */
 class SmsSenderService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var phoneNumber: String = ""
     private var message: String = ""
-    private var intervalMs: Long = DEFAULT_INTERVAL_MS
     private var sentCount = 0
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private val sendRunnable = object : Runnable {
         override fun run() {
             sendSms()
-            handler.postDelayed(this, intervalMs)
+            handler.postDelayed(this, INTERVAL_MS)
         }
     }
 
@@ -49,8 +51,6 @@ class SmsSenderService : Service() {
             else -> {
                 phoneNumber = intent?.getStringExtra(EXTRA_PHONE).orEmpty()
                 message = intent?.getStringExtra(EXTRA_MESSAGE).orEmpty()
-                intervalMs = intent?.getLongExtra(EXTRA_INTERVAL_MS, DEFAULT_INTERVAL_MS)
-                    ?: DEFAULT_INTERVAL_MS
 
                 // Always call startForeground promptly: the service was started
                 // with startForegroundService and must enter the foreground
@@ -69,12 +69,28 @@ class SmsSenderService : Service() {
                     return START_NOT_STICKY
                 }
 
-                // Send once immediately, then keep repeating on the interval.
+                acquireWakeLock()
+
+                // Send once immediately, then keep repeating every 15 seconds.
                 handler.removeCallbacks(sendRunnable)
                 handler.post(sendRunnable)
             }
         }
         return START_STICKY
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AlfaSms::sender").apply {
+            setReferenceCounted(false)
+            acquire(6 * 60 * 60 * 1000L) // safety timeout: 6 hours
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
     }
 
     private fun sendSms() {
@@ -156,6 +172,7 @@ class SmsSenderService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(sendRunnable)
+        releaseWakeLock()
         super.onDestroy()
     }
 
@@ -167,8 +184,8 @@ class SmsSenderService : Service() {
         const val ACTION_STOP = "com.example.messagesender.ACTION_STOP"
         const val EXTRA_PHONE = "extra_phone"
         const val EXTRA_MESSAGE = "extra_message"
-        const val EXTRA_INTERVAL_MS = "extra_interval_ms"
 
-        const val DEFAULT_INTERVAL_MS = 15_000L
+        /** Fixed sending interval: 15 seconds. */
+        const val INTERVAL_MS = 15_000L
     }
 }

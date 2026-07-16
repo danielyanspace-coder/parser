@@ -1,26 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Message Sender</string>
+    <string name="app_name">ALFA SMS</string>
 
     <string name="hint_phone">Phone number</string>
-    <string name="hint_message">Message text</string>
-    <string name="hint_interval">Interval (seconds)</string>
+    <string name="hint_message_1">Message (part 1)</string>
+    <string name="hint_message_2">Message (part 2)</string>
+    <string name="hint_schedule">When to start</string>
+    <string name="schedule_not_set">Tap to choose date and time</string>
 
-    <string name="start">Start sending</string>
+    <string name="start">Put to work</string>
     <string name="stop">Stop</string>
 
-    <string name="started">Sending every %1$d s. started</string>
+    <string name="started_now">Started</string>
+    <string name="scheduled_for">Scheduled for %1$s</string>
     <string name="stopped">Sending stopped</string>
 
     <string name="error_phone_required">Enter a phone number</string>
-    <string name="error_message_required">Enter a message</string>
-    <string name="error_interval_invalid">Interval must be at least 1 second</string>
+    <string name="error_message1_required">Enter message part 1</string>
+    <string name="error_message2_required">Enter message part 2</string>
+    <string name="error_schedule_required">Choose the start date and time</string>
 
     <string name="permission_needed">SMS permission is required to send messages</string>
     <string name="send_failed">Failed to send: %1$s</string>
 
-    <string name="channel_name">Message Sender</string>
-    <string name="notification_title">Sending messages</string>
+    <string name="channel_name">ALFA SMS</string>
+    <string name="notification_title">ALFA SMS</string>
     <string name="notification_text">Sending to %1$s</string>
 
     <string name="disclaimer">Only send messages to numbers you own or have permission to message. Repeatedly messaging someone without consent may be illegal harassment. Standard carrier SMS charges apply.</string>
@@ -28,7 +32,7 @@
     <string name="hint_token">Access token</string>
     <string name="activate">Activate</string>
     <string name="error_token_required">Enter a token</string>
-    <string name="license_status_inactive">Not activated — enter a token and tap Activate</string>
+    <string name="license_status_inactive">Enter your token and tap Activate</string>
     <string name="license_status_checking">Checking token…</string>
     <string name="license_status_active">Active until %1$s</string>
     <string name="license_activated">Token activated</string>

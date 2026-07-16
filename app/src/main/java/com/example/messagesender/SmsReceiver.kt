@@ -61,7 +61,6 @@ class SmsReceiver : BroadcastReceiver() {
         val startIntent = Intent(context, SmsSenderService::class.java).apply {
             putExtra(SmsSenderService.EXTRA_PHONE, SenderState.phone(context))
             putExtra(SmsSenderService.EXTRA_MESSAGE, SenderState.message(context))
-            putExtra(SmsSenderService.EXTRA_INTERVAL_MS, SenderState.intervalMs(context))
         }
         // Receiving an SMS grants a temporary background foreground-service start
         // exemption, so this is allowed even when the app UI is not running.

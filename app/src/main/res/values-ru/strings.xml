@@ -1,26 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Отправитель сообщений</string>
+    <string name="app_name">ALFA SMS</string>
 
     <string name="hint_phone">Номер телефона</string>
-    <string name="hint_message">Текст сообщения</string>
-    <string name="hint_interval">Интервал (секунды)</string>
+    <string name="hint_message_1">Сообщение (часть 1)</string>
+    <string name="hint_message_2">Сообщение (часть 2)</string>
+    <string name="hint_schedule">Когда начать работу</string>
+    <string name="schedule_not_set">Нажмите, чтобы выбрать дату и время</string>
 
-    <string name="start">Начать отправку</string>
+    <string name="start">Поставить в работу</string>
     <string name="stop">Остановить</string>
 
-    <string name="started">Отправка каждые %1$d сек. запущена</string>
+    <string name="started_now">Запущено</string>
+    <string name="scheduled_for">Запланировано на %1$s</string>
     <string name="stopped">Отправка остановлена</string>
 
     <string name="error_phone_required">Введите номер телефона</string>
-    <string name="error_message_required">Введите сообщение</string>
-    <string name="error_interval_invalid">Интервал должен быть не меньше 1 секунды</string>
+    <string name="error_message1_required">Введите сообщение (часть 1)</string>
+    <string name="error_message2_required">Введите сообщение (часть 2)</string>
+    <string name="error_schedule_required">Выберите дату и время начала</string>
 
     <string name="permission_needed">Для отправки SMS нужно разрешение</string>
     <string name="send_failed">Не удалось отправить: %1$s</string>
 
-    <string name="channel_name">Отправитель сообщений</string>
-    <string name="notification_title">Отправка сообщений</string>
+    <string name="channel_name">ALFA SMS</string>
+    <string name="notification_title">ALFA SMS</string>
     <string name="notification_text">Отправка на %1$s</string>
 
     <string name="disclaimer">Отправляйте сообщения только на номера, которыми вы владеете или на отправку которым у вас есть разрешение. Повторяющаяся отправка сообщений без согласия получателя может быть незаконным преследованием. Действуют тарифы оператора на SMS.</string>
@@ -28,7 +32,7 @@
     <string name="hint_token">Токен доступа</string>
     <string name="activate">Активировать</string>
     <string name="error_token_required">Введите токен</string>
-    <string name="license_status_inactive">Не активировано — введите токен и нажмите «Активировать»</string>
+    <string name="license_status_inactive">Введите токен и нажмите «Активировать»</string>
     <string name="license_status_checking">Проверка токена…</string>
     <string name="license_status_active">Активно до %1$s</string>
     <string name="license_activated">Токен активирован</string>

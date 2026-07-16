@@ -1,16 +1,20 @@
 package com.example.messagesender
 
 import android.Manifest
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.text.format.DateFormat
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.messagesender.databinding.ActivityMainBinding
+import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.Executors
 
@@ -19,12 +23,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val background = Executors.newSingleThreadExecutor()
 
+    /** Chosen start time (epoch millis); 0 = not chosen yet. */
+    private var scheduledAtMillis: Long = 0L
+
     private val requestPermissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
         val smsGranted = result[Manifest.permission.SEND_SMS] == true
         if (smsGranted) {
-            startSending()
+            commitStart()
         } else {
             Toast.makeText(this, R.string.permission_needed, Toast.LENGTH_LONG).show()
         }
@@ -37,6 +44,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.editToken.setText(LicenseManager.savedToken(this))
         binding.buttonActivate.setOnClickListener { onActivateClicked() }
+        binding.buttonSchedule.setOnClickListener { pickDateTime() }
         binding.buttonStart.setOnClickListener { onStartClicked() }
         binding.buttonStop.setOnClickListener { stopSending() }
 
@@ -82,6 +90,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateLicenseUi() {
         val active = LicenseManager.hasValidLease(this)
+        binding.senderSection.visibility = if (active) View.VISIBLE else View.GONE
         if (active) {
             val exp = Date(LicenseManager.leaseExp(this))
             val formatted = DateFormat.getMediumDateFormat(this).format(exp) + " " +
@@ -90,7 +99,41 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.textLicenseStatus.text = getString(R.string.license_status_inactive)
         }
-        binding.buttonStart.isEnabled = active
+    }
+
+    // --- Schedule picker ---
+
+    private fun pickDateTime() {
+        val now = Calendar.getInstance()
+        val initial = if (scheduledAtMillis > 0) {
+            Calendar.getInstance().apply { timeInMillis = scheduledAtMillis }
+        } else now
+
+        DatePickerDialog(
+            this,
+            { _, year, month, day ->
+                TimePickerDialog(
+                    this,
+                    { _, hour, minute ->
+                        val chosen = Calendar.getInstance().apply {
+                            set(year, month, day, hour, minute, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        scheduledAtMillis = chosen.timeInMillis
+                        val d = Date(scheduledAtMillis)
+                        val text = DateFormat.getMediumDateFormat(this).format(d) + " " +
+                            DateFormat.getTimeFormat(this).format(d)
+                        binding.buttonSchedule.text = text
+                    },
+                    initial.get(Calendar.HOUR_OF_DAY),
+                    initial.get(Calendar.MINUTE),
+                    DateFormat.is24HourFormat(this)
+                ).show()
+            },
+            initial.get(Calendar.YEAR),
+            initial.get(Calendar.MONTH),
+            initial.get(Calendar.DAY_OF_MONTH)
+        ).show()
     }
 
     // --- Sending ---
@@ -98,30 +141,33 @@ class MainActivity : AppCompatActivity() {
     private fun onStartClicked() {
         if (!LicenseManager.hasValidLease(this)) {
             Toast.makeText(this, R.string.license_required, Toast.LENGTH_LONG).show()
+            updateLicenseUi()
             return
         }
 
         val phone = binding.editPhone.text?.toString()?.trim().orEmpty()
-        val message = binding.editMessage.text?.toString()?.trim().orEmpty()
-        val intervalText = binding.editInterval.text?.toString()?.trim().orEmpty()
+        val message1 = binding.editMessage1.text?.toString()?.trim().orEmpty()
+        val message2 = binding.editMessage2.text?.toString()?.trim().orEmpty()
 
         if (phone.isBlank()) {
             binding.editPhone.error = getString(R.string.error_phone_required)
             return
         }
-        if (message.isBlank()) {
-            binding.editMessage.error = getString(R.string.error_message_required)
+        if (message1.isBlank()) {
+            binding.editMessage1.error = getString(R.string.error_message1_required)
             return
         }
-
-        val intervalSeconds = intervalText.toLongOrNull() ?: 15L
-        if (intervalSeconds < 1) {
-            binding.editInterval.error = getString(R.string.error_interval_invalid)
+        if (message2.isBlank()) {
+            binding.editMessage2.error = getString(R.string.error_message2_required)
+            return
+        }
+        if (scheduledAtMillis <= 0L) {
+            Toast.makeText(this, R.string.error_schedule_required, Toast.LENGTH_LONG).show()
             return
         }
 
         if (hasRequiredPermissions()) {
-            startSending()
+            commitStart()
         } else {
             requestPermissions.launch(requiredPermissions())
         }
@@ -150,48 +196,41 @@ class MainActivity : AppCompatActivity() {
         return sendGranted && receiveGranted
     }
 
-    private fun startSending() {
-        if (!LicenseManager.hasValidLease(this)) {
-            Toast.makeText(this, R.string.license_required, Toast.LENGTH_LONG).show()
-            updateLicenseUi()
-            return
-        }
-
+    /** Saves parameters and schedules (or immediately starts) the sender. */
+    private fun commitStart() {
         val phone = binding.editPhone.text?.toString()?.trim().orEmpty()
-        val message = binding.editMessage.text?.toString()?.trim().orEmpty()
-        val intervalSeconds = binding.editInterval.text?.toString()?.trim()?.toLongOrNull() ?: 15L
-        val intervalMs = intervalSeconds * 1000L
+        val message1 = binding.editMessage1.text?.toString()?.trim().orEmpty()
+        val message2 = binding.editMessage2.text?.toString()?.trim().orEmpty()
+        // The two fields are sent as one message, joined by a space.
+        val message = "$message1 $message2"
 
-        // Persist parameters and enable the automatic cycle so SmsReceiver can
-        // pause on "символ" and resume on "успешно" later.
-        SenderState.save(this, phone, message, intervalMs)
+        SenderState.save(this, phone, message)
+        ScheduleManager.scheduleStart(this, scheduledAtMillis)
 
-        val intent = Intent(this, SmsSenderService::class.java).apply {
-            putExtra(SmsSenderService.EXTRA_PHONE, phone)
-            putExtra(SmsSenderService.EXTRA_MESSAGE, message)
-            putExtra(SmsSenderService.EXTRA_INTERVAL_MS, intervalMs)
+        val startedNow = scheduledAtMillis <= System.currentTimeMillis()
+        if (startedNow) {
+            Toast.makeText(this, R.string.started_now, Toast.LENGTH_SHORT).show()
+        } else {
+            val d = Date(scheduledAtMillis)
+            val when_ = DateFormat.getMediumDateFormat(this).format(d) + " " +
+                DateFormat.getTimeFormat(this).format(d)
+            Toast.makeText(this, getString(R.string.scheduled_for, when_), Toast.LENGTH_LONG).show()
         }
-        ContextCompat.startForegroundService(this, intent)
-
-        Toast.makeText(
-            this,
-            getString(R.string.started, intervalSeconds),
-            Toast.LENGTH_SHORT
-        ).show()
 
         binding.buttonStart.isEnabled = false
         binding.buttonStop.isEnabled = true
     }
 
     private fun stopSending() {
-        val intent = Intent(this, SmsSenderService::class.java).apply {
-            action = SmsSenderService.ACTION_STOP
-        }
-        startService(intent)
+        // Cancel a pending scheduled start, disable the auto-cycle, and stop any
+        // running sender.
+        ScheduleManager.cancel(this)
+        SenderState.setCycleEnabled(this, false)
+        stopService(Intent(this, SmsSenderService::class.java))
 
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()
 
-        binding.buttonStart.isEnabled = LicenseManager.hasValidLease(this)
+        binding.buttonStart.isEnabled = true
         binding.buttonStop.isEnabled = false
     }
 }

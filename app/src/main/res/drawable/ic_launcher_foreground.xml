@@ -3,7 +3,12 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Neon "A" (ALFA) -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M34,40h40a4,4 0,0 1,4 4v16a4,4 0,0 1,-4 4h-22l-10,8v-8h-8a4,4 0,0 1,-4 -4v-16a4,4 0,0 1,4 -4z" />
+        android:fillColor="#00E5FF"
+        android:pathData="M54,24 L84,86 L70,86 L54,50 L38,86 L24,86 Z" />
+    <!-- Magenta crossbar -->
+    <path
+        android:fillColor="#FF3DBE"
+        android:pathData="M40,64 L68,64 L68,72 L40,72 Z" />
 </vector>

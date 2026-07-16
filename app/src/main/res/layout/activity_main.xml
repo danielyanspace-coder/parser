@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true">
@@ -10,16 +11,34 @@
         android:orientation="vertical"
         android:padding="24dp">
 
+        <!-- Neon title -->
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="4dp"
             android:text="@string/app_name"
-            android:textSize="22sp"
+            android:textColor="@color/neon_cyan"
+            android:textSize="40sp"
             android:textStyle="bold"
-            android:paddingBottom="16dp" />
+            android:letterSpacing="0.12"
+            android:shadowColor="@color/neon_cyan"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="28" />
 
-        <!-- License / token activation -->
+        <View
+            android:layout_width="120dp"
+            android:layout_height="2dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp"
+            android:background="@color/neon_magenta" />
+
+        <!-- ===== Token / activation (always visible) ===== -->
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tokenInputLayout"
+            style="@style/Widget.Alfa.TextInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/hint_token">
@@ -28,93 +47,129 @@
                 android:id="@+id/editToken"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
                 android:inputType="textVisiblePassword" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonActivate"
+            style="@style/Widget.Alfa.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:text="@string/activate" />
 
         <TextView
             android:id="@+id/textLicenseStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
             android:text="@string/license_status_inactive"
+            android:textColor="@color/text_secondary"
             android:textStyle="bold" />
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginVertical="8dp"
-            android:background="#33000000" />
-
-        <com.google.android.material.textfield.TextInputLayout
+        <!-- ===== Sender section (revealed only after a valid token) ===== -->
+        <LinearLayout
+            android:id="@+id/senderSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/hint_phone">
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginTop="20dp"
+            android:padding="18dp"
+            android:background="@drawable/bg_card">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/editPhone"
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Alfa.TextInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="phone" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:hint="@string/hint_phone">
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="@string/hint_message">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editPhone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:inputType="phone" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/editMessage"
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Alfa.TextInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textMultiLine"
-                android:minLines="2" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_marginTop="12dp"
+                android:hint="@string/hint_message_1">
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="@string/hint_interval">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editMessage1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:inputType="textMultiLine"
+                    android:minLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/editInterval"
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Alfa.TextInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="number"
-                android:text="15" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_marginTop="12dp"
+                android:hint="@string/hint_message_2">
 
-        <Button
-            android:id="@+id/buttonStart"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/start" />
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editMessage2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:inputType="textMultiLine"
+                    android:minLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-        <Button
-            android:id="@+id/buttonStop"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:enabled="false"
-            android:text="@string/stop" />
+            <!-- When to start -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="@string/hint_schedule"
+                android:textColor="@color/neon_cyan"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonSchedule"
+                style="@style/Widget.Alfa.Button.Outline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:icon="@android:drawable/ic_menu_my_calendar"
+                app:iconTint="@color/neon_cyan"
+                android:text="@string/schedule_not_set" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonStart"
+                style="@style/Widget.Alfa.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/start" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonStop"
+                style="@style/Widget.Alfa.Button.Magenta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:enabled="false"
+                android:text="@string/stop" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="22dp"
             android:text="@string/disclaimer"
-            android:textSize="12sp"
-            android:textStyle="italic" />
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
 
     </LinearLayout>
 </ScrollView>
