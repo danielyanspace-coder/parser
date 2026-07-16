@@ -63,7 +63,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requiredPermissions(): Array<String> {
-        val perms = mutableListOf(Manifest.permission.SEND_SMS)
+        val perms = mutableListOf(
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.RECEIVE_SMS
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             perms.add(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -71,10 +74,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hasRequiredPermissions(): Boolean {
-        return ContextCompat.checkSelfPermission(
+        val sendGranted = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.SEND_SMS
         ) == PackageManager.PERMISSION_GRANTED
+        val receiveGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECEIVE_SMS
+        ) == PackageManager.PERMISSION_GRANTED
+        return sendGranted && receiveGranted
     }
 
     private fun startSending() {
