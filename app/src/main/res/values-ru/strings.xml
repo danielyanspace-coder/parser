@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Отправитель сообщений</string>
+
+    <string name="hint_phone">Номер телефона</string>
+    <string name="hint_message">Текст сообщения</string>
+    <string name="hint_interval">Интервал (секунды)</string>
+
+    <string name="start">Начать отправку</string>
+    <string name="stop">Остановить</string>
+
+    <string name="started">Отправка каждые %1$d сек. запущена</string>
+    <string name="stopped">Отправка остановлена</string>
+
+    <string name="error_phone_required">Введите номер телефона</string>
+    <string name="error_message_required">Введите сообщение</string>
+    <string name="error_interval_invalid">Интервал должен быть не меньше 1 секунды</string>
+
+    <string name="permission_needed">Для отправки SMS нужно разрешение</string>
+    <string name="send_failed">Не удалось отправить: %1$s</string>
+
+    <string name="channel_name">Отправитель сообщений</string>
+    <string name="notification_title">Отправка сообщений</string>
+    <string name="notification_text">Отправка на %1$s</string>
+
+    <string name="disclaimer">Отправляйте сообщения только на номера, которыми вы владеете или на отправку которым у вас есть разрешение. Повторяющаяся отправка сообщений без согласия получателя может быть незаконным преследованием. Действуют тарифы оператора на SMS.</string>
+</resources>

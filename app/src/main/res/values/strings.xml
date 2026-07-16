@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Message Sender</string>
+
+    <string name="hint_phone">Phone number</string>
+    <string name="hint_message">Message text</string>
+    <string name="hint_interval">Interval (seconds)</string>
+
+    <string name="start">Start sending</string>
+    <string name="stop">Stop</string>
+
+    <string name="started">Sending every %1$d s. started</string>
+    <string name="stopped">Sending stopped</string>
+
+    <string name="error_phone_required">Enter a phone number</string>
+    <string name="error_message_required">Enter a message</string>
+    <string name="error_interval_invalid">Interval must be at least 1 second</string>
+
+    <string name="permission_needed">SMS permission is required to send messages</string>
+    <string name="send_failed">Failed to send: %1$s</string>
+
+    <string name="channel_name">Message Sender</string>
+    <string name="notification_title">Sending messages</string>
+    <string name="notification_text">Sending to %1$s</string>
+
+    <string name="disclaimer">Only send messages to numbers you own or have permission to message. Repeatedly messaging someone without consent may be illegal harassment. Standard carrier SMS charges apply.</string>
+</resources>
