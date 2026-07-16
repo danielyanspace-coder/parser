@@ -38,11 +38,14 @@ class SmsReceiver : BroadcastReceiver() {
                 replyOk(context, sender)
             }
             body.contains(RESUME_WORD, ignoreCase = true) -> {
-                if (SenderState.isCycleEnabled(context) && SenderState.hasConfig(context)) {
+                val allowed = SenderState.isCycleEnabled(context) &&
+                    SenderState.hasConfig(context) &&
+                    LicenseManager.hasValidLease(context)
+                if (allowed) {
                     Log.i(TAG, "Resume word received from $sender; restarting sender")
                     resumeSenderService(context)
                 } else {
-                    Log.i(TAG, "Resume word received but cycle is not active; ignoring")
+                    Log.i(TAG, "Resume word received but cycle/license is not active; ignoring")
                 }
             }
         }

@@ -13,6 +13,21 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+
+        // === License server configuration ===
+        // Set the public URL of your license server (from server/server.js).
+        buildConfigField(
+            "String",
+            "SERVER_URL",
+            "\"https://your-server.example.com\""
+        )
+        // Paste the base64 public key printed by the server on startup
+        // (or open <server>/admin/pubkey). Leases are verified against this key.
+        buildConfigField(
+            "String",
+            "LICENSE_PUBLIC_KEY",
+            "\"PASTE_YOUR_SERVER_PUBLIC_KEY_HERE\""
+        )
     }
 
     buildTypes {
@@ -36,6 +51,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -44,4 +60,5 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }

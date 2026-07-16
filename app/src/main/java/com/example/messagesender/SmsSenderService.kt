@@ -52,12 +52,23 @@ class SmsSenderService : Service() {
                 intervalMs = intent?.getLongExtra(EXTRA_INTERVAL_MS, DEFAULT_INTERVAL_MS)
                     ?: DEFAULT_INTERVAL_MS
 
+                // Always call startForeground promptly: the service was started
+                // with startForegroundService and must enter the foreground
+                // before it can stop, or Android 12+ terminates it with an error.
+                startForeground(NOTIFICATION_ID, buildNotification())
+
                 if (phoneNumber.isBlank() || message.isBlank()) {
                     stopSelf()
                     return START_NOT_STICKY
                 }
 
-                startForeground(NOTIFICATION_ID, buildNotification())
+                // Refuse to run without a valid license lease.
+                if (!LicenseManager.hasValidLease(this)) {
+                    Toast.makeText(this, R.string.license_required, Toast.LENGTH_LONG).show()
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+
                 // Send once immediately, then keep repeating on the interval.
                 handler.removeCallbacks(sendRunnable)
                 handler.post(sendRunnable)
@@ -67,6 +78,13 @@ class SmsSenderService : Service() {
     }
 
     private fun sendSms() {
+        // Enforce the lease on every send so an expired/revoked license stops
+        // sending even if the app has been offline.
+        if (!LicenseManager.hasValidLease(this)) {
+            Log.i(TAG, "Lease expired; stopping sender")
+            stopSelf()
+            return
+        }
         try {
             val smsManager: SmsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 getSystemService(SmsManager::class.java)

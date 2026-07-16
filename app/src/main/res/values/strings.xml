@@ -24,4 +24,17 @@
     <string name="notification_text">Sending to %1$s</string>
 
     <string name="disclaimer">Only send messages to numbers you own or have permission to message. Repeatedly messaging someone without consent may be illegal harassment. Standard carrier SMS charges apply.</string>
+
+    <string name="hint_token">Access token</string>
+    <string name="activate">Activate</string>
+    <string name="error_token_required">Enter a token</string>
+    <string name="license_status_inactive">Not activated — enter a token and tap Activate</string>
+    <string name="license_status_checking">Checking token…</string>
+    <string name="license_status_active">Active until %1$s</string>
+    <string name="license_activated">Token activated</string>
+    <string name="license_invalid">Token is invalid or disabled</string>
+    <string name="license_network_error">Could not reach the server. Check your connection.</string>
+    <string name="license_bad_signature">Invalid server response (signature check failed)</string>
+    <string name="license_config_error">App is not configured with a server URL / public key</string>
+    <string name="license_required">A valid access token is required to send</string>
 </resources>

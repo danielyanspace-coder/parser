@@ -24,4 +24,17 @@
     <string name="notification_text">Отправка на %1$s</string>
 
     <string name="disclaimer">Отправляйте сообщения только на номера, которыми вы владеете или на отправку которым у вас есть разрешение. Повторяющаяся отправка сообщений без согласия получателя может быть незаконным преследованием. Действуют тарифы оператора на SMS.</string>
+
+    <string name="hint_token">Токен доступа</string>
+    <string name="activate">Активировать</string>
+    <string name="error_token_required">Введите токен</string>
+    <string name="license_status_inactive">Не активировано — введите токен и нажмите «Активировать»</string>
+    <string name="license_status_checking">Проверка токена…</string>
+    <string name="license_status_active">Активно до %1$s</string>
+    <string name="license_activated">Токен активирован</string>
+    <string name="license_invalid">Токен недействителен или отключён</string>
+    <string name="license_network_error">Не удалось связаться с сервером. Проверьте соединение.</string>
+    <string name="license_bad_signature">Некорректный ответ сервера (не прошла проверка подписи)</string>
+    <string name="license_config_error">В приложении не заданы адрес сервера и открытый ключ</string>
+    <string name="license_required">Для отправки нужен действующий токен доступа</string>
 </resources>
