@@ -35,39 +35,46 @@
             android:layout_marginBottom="24dp"
             android:background="@color/neon_magenta" />
 
-        <!-- ===== Token / activation (always visible) ===== -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/tokenInputLayout"
-            style="@style/Widget.Alfa.TextInput"
+        <!-- ===== Token / activation (shown until a valid token is entered) ===== -->
+        <LinearLayout
+            android:id="@+id/tokenSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/hint_token">
+            android:orientation="vertical">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/editToken"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tokenInputLayout"
+                style="@style/Widget.Alfa.TextInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/text_primary"
-                android:inputType="textVisiblePassword" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:hint="@string/hint_token">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonActivate"
-            style="@style/Widget.Alfa.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/activate" />
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editToken"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:inputType="textVisiblePassword" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-        <TextView
-            android:id="@+id/textLicenseStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center"
-            android:text="@string/license_status_inactive"
-            android:textColor="@color/text_secondary"
-            android:textStyle="bold" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonActivate"
+                style="@style/Widget.Alfa.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/activate" />
+
+            <TextView
+                android:id="@+id/textLicenseStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:text="@string/license_status_inactive"
+                android:textColor="@color/text_secondary"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <!-- ===== Sender section (revealed only after a valid token) ===== -->
         <LinearLayout

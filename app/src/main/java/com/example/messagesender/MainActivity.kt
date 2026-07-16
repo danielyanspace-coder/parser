@@ -83,7 +83,11 @@ class MainActivity : AppCompatActivity() {
 
     /** Reflects the live sender status (running / scheduled / stopped) in the UI. */
     private fun refreshRunningUi() {
-        if (!LicenseManager.hasValidLease(this)) return
+        if (!LicenseManager.hasValidLease(this)) {
+            // Token expired or was revoked: return to the token screen.
+            updateLicenseUi()
+            return
+        }
         val jobActive = SenderState.isCycleEnabled(this)
         val running = SenderStatus.running
 
@@ -155,13 +159,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateLicenseUi() {
         val active = LicenseManager.hasValidLease(this)
+        // Token screen and functionality are mutually exclusive: the sender UI is
+        // only reachable with a valid token, and a lost/expired/revoked token
+        // sends the user back to the token screen.
+        binding.tokenSection.visibility = if (active) View.GONE else View.VISIBLE
         binding.senderSection.visibility = if (active) View.VISIBLE else View.GONE
-        if (active) {
-            val exp = Date(LicenseManager.leaseExp(this))
-            val formatted = DateFormat.getMediumDateFormat(this).format(exp) + " " +
-                DateFormat.getTimeFormat(this).format(exp)
-            binding.textLicenseStatus.text = getString(R.string.license_status_active, formatted)
-        } else {
+        if (!active) {
             binding.textLicenseStatus.text = getString(R.string.license_status_inactive)
         }
     }
