@@ -6,7 +6,9 @@
     <string name="hint_message_1">Message (part 1)</string>
     <string name="hint_message_2">Message (part 2)</string>
     <string name="hint_schedule">When to start</string>
-    <string name="schedule_not_set">Tap to choose date and time</string>
+    <string name="schedule_not_set">Tap to choose when to start</string>
+    <string name="schedule_now">Now</string>
+    <string name="schedule_option_pick">Pick date &amp; time</string>
 
     <string name="start">Put to work</string>
     <string name="stop">Stop</string>

@@ -48,7 +48,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.editToken.setText(LicenseManager.savedToken(this))
         binding.buttonActivate.setOnClickListener { onActivateClicked() }
-        binding.buttonSchedule.setOnClickListener { pickDateTime() }
+        binding.buttonSchedule.setOnClickListener { onScheduleClicked() }
         binding.buttonStart.setOnClickListener { onStartClicked() }
         binding.buttonStop.setOnClickListener { stopSending() }
 
@@ -123,6 +123,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     // --- Schedule picker ---
+
+    private fun onScheduleClicked() {
+        val options = arrayOf(
+            getString(R.string.schedule_now),
+            getString(R.string.schedule_option_pick)
+        )
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.hint_schedule)
+            .setItems(options) { _, which ->
+                if (which == 0) {
+                    // Start now.
+                    scheduledAtMillis = System.currentTimeMillis()
+                    binding.buttonSchedule.text = getString(R.string.schedule_now)
+                } else {
+                    pickDateTime()
+                }
+            }
+            .show()
+    }
 
     private fun pickDateTime() {
         val now = Calendar.getInstance()

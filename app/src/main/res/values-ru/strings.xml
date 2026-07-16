@@ -6,7 +6,9 @@
     <string name="hint_message_1">Сообщение (часть 1)</string>
     <string name="hint_message_2">Сообщение (часть 2)</string>
     <string name="hint_schedule">Когда начать работу</string>
-    <string name="schedule_not_set">Нажмите, чтобы выбрать дату и время</string>
+    <string name="schedule_not_set">Нажмите, чтобы выбрать время старта</string>
+    <string name="schedule_now">Сейчас</string>
+    <string name="schedule_option_pick">Выбрать дату и время</string>
 
     <string name="start">Поставить в работу</string>
     <string name="stop">Остановить</string>
