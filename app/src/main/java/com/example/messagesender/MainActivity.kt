@@ -9,6 +9,8 @@ import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.text.format.DateFormat
@@ -33,6 +35,14 @@ class MainActivity : AppCompatActivity() {
 
     /** Chosen start time (epoch millis); 0 = not chosen yet. */
     private var scheduledAtMillis: Long = 0L
+
+    private val ui = Handler(Looper.getMainLooper())
+    private val statusPoller = object : Runnable {
+        override fun run() {
+            refreshRunningUi()
+            ui.postDelayed(this, 1000)
+        }
+    }
 
     private val requestPermissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -62,6 +72,36 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateLicenseUi()
+        ui.removeCallbacks(statusPoller)
+        ui.post(statusPoller)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        ui.removeCallbacks(statusPoller)
+    }
+
+    /** Reflects the live sender status (running / scheduled / stopped) in the UI. */
+    private fun refreshRunningUi() {
+        if (!LicenseManager.hasValidLease(this)) return
+        val jobActive = SenderState.isCycleEnabled(this)
+        val running = SenderStatus.running
+
+        binding.buttonStart.isEnabled = !jobActive
+        binding.buttonStop.isEnabled = jobActive
+
+        val base = when {
+            running -> getString(R.string.status_running, SenderStatus.sentCount)
+            jobActive -> getString(R.string.status_scheduled)
+            else -> getString(R.string.status_idle)
+        }
+        val err = SenderStatus.lastError
+        binding.textSendStatus.text =
+            if (err != null && (running || jobActive)) {
+                base + "\n" + getString(R.string.status_error, err)
+            } else {
+                base
+            }
     }
 
     /** Tapping outside the focused text field clears focus and hides the keyboard. */

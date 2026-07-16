@@ -48,4 +48,9 @@
     <string name="battery_message">Чтобы отправлять каждые 15 секунд даже при выключенном экране, приложение нужно исключить из экономии батареи. Открыть настройки и разрешить?</string>
     <string name="battery_allow">Разрешить</string>
     <string name="cancel">Позже</string>
+
+    <string name="status_idle">⚪ Остановлено</string>
+    <string name="status_running">🟢 В работе • отправлено: %1$d</string>
+    <string name="status_scheduled">⏳ Ожидает запуска…</string>
+    <string name="status_error">⚠ Ошибка: %1$s</string>
 </resources>

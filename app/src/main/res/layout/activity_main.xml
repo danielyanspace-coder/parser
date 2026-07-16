@@ -161,6 +161,16 @@
                 android:layout_marginTop="10dp"
                 android:enabled="false"
                 android:text="@string/stop" />
+
+            <TextView
+                android:id="@+id/textSendStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="@string/status_idle"
+                android:textColor="@color/text_secondary"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <TextView

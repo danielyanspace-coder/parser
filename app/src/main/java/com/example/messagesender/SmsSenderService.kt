@@ -49,10 +49,10 @@ class SmsSenderService : Service() {
                 return START_NOT_STICKY
             }
             else -> {
-                // Use the intent extras when present; otherwise fall back to the
-                // saved config. The fallback matters when START_STICKY makes the
-                // system recreate the service with a null intent after a kill —
-                // this lets it resume sending on its own.
+                // A fresh start passes the phone/message as extras. A system
+                // restart via START_STICKY passes a null intent — in that case we
+                // resume from the saved config, but only if the job wasn't stopped.
+                val fromUser = intent?.hasExtra(EXTRA_PHONE) == true
                 phoneNumber = intent?.getStringExtra(EXTRA_PHONE)
                     ?: SenderState.phone(this)
                 message = intent?.getStringExtra(EXTRA_MESSAGE)
@@ -63,13 +63,14 @@ class SmsSenderService : Service() {
                 // before it can stop, or Android 12+ terminates it with an error.
                 startForeground(NOTIFICATION_ID, buildNotification())
 
-                val allowed = phoneNumber.isNotBlank() &&
-                    message.isNotBlank() &&
-                    SenderState.isCycleEnabled(this) &&
-                    LicenseManager.hasValidLease(this)
+                val configured = phoneNumber.isNotBlank() && message.isNotBlank()
+                val licensed = LicenseManager.hasValidLease(this)
+                // Only the auto-restart path is gated on the cycle flag; a start
+                // the user just triggered always proceeds.
+                val notStopped = fromUser || SenderState.isCycleEnabled(this)
 
-                if (!allowed) {
-                    if (phoneNumber.isNotBlank() && !LicenseManager.hasValidLease(this)) {
+                if (!configured || !licensed || !notStopped) {
+                    if (configured && !licensed) {
                         Toast.makeText(this, R.string.license_required, Toast.LENGTH_LONG).show()
                     }
                     stopSelf()
@@ -77,6 +78,8 @@ class SmsSenderService : Service() {
                 }
 
                 acquireWakeLock()
+                SenderStatus.reset()
+                SenderStatus.running = true
 
                 // Send once immediately, then keep repeating every 15 seconds.
                 handler.removeCallbacks(sendRunnable)
@@ -122,9 +125,13 @@ class SmsSenderService : Service() {
                 smsManager.sendTextMessage(phoneNumber, null, message, null, null)
             }
             sentCount++
+            SenderStatus.sentCount = sentCount
+            SenderStatus.lastSentAt = System.currentTimeMillis()
+            SenderStatus.lastError = null
             Log.i(TAG, "Sent SMS #$sentCount to $phoneNumber")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send SMS", e)
+            SenderStatus.lastError = e.message ?: e.javaClass.simpleName
             Toast.makeText(this, getString(R.string.send_failed, e.message), Toast.LENGTH_LONG)
                 .show()
         }
@@ -180,6 +187,7 @@ class SmsSenderService : Service() {
     override fun onDestroy() {
         handler.removeCallbacks(sendRunnable)
         releaseWakeLock()
+        SenderStatus.running = false
         super.onDestroy()
     }
 
