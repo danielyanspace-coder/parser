@@ -67,6 +67,7 @@ class MainActivity : AppCompatActivity() {
         binding.buttonStop.setOnClickListener { stopSending() }
 
         LicenseRefreshScheduler.schedule(this)
+        UpdateManager.checkForUpdate(this)
     }
 
     override fun onResume() {

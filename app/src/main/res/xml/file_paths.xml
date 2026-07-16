@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Downloaded update APKs live in the app's external cache. -->
+    <external-cache-path name="updates" path="." />
+    <cache-path name="int_updates" path="." />
+</paths>

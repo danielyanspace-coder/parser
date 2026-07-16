@@ -11,8 +11,10 @@ android {
         applicationId = "com.example.messagesender"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Bump versionCode on every release so the in-app updater detects it.
+        // Override at build time: -PversionCode=2 -PversionName=1.1
+        versionCode = ((project.findProperty("versionCode") as String?)?.toInt()) ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "1.0"
 
         // === License server configuration ===
         // SERVER_URL can be overridden at build time with -PserverUrl=...
@@ -26,6 +28,15 @@ android {
 
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
         buildConfigField("String", "LICENSE_PUBLIC_KEY", "\"$licenseKey\"")
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("alfa-release.jks")
+            storePassword = "alfasms123"
+            keyAlias = "alfa"
+            keyPassword = "alfasms123"
+        }
     }
 
     buildTypes {
@@ -42,9 +53,8 @@ android {
             )
             // Distributable build: a valid token from your server is required.
             buildConfigField("boolean", "LICENSE_ENFORCED", "true")
-            // Sign with the debug key so the release APK is installable when
-            // distributed outside the Play Store (sideloaded).
-            signingConfig = signingConfigs.getByName("debug")
+            // Sign with the stable release key so in-place updates work.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

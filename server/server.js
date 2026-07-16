@@ -28,6 +28,9 @@ const LEASE_TTL_MS = parseInt(process.env.LEASE_TTL_MS || String(24 * 60 * 60 * 
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const KEYS_FILE = path.join(DATA_DIR, 'keys.json');
+const APK_FILE = path.join(DATA_DIR, 'alfa-sms.apk');
+const UPDATE_FILE = path.join(DATA_DIR, 'update.json');
+const MAX_APK_BYTES = 150 * 1024 * 1024; // 150 MB upload cap
 
 if (!ADMIN_PASSWORD) {
   console.error('FATAL: set ADMIN_PASSWORD environment variable before starting.');
@@ -158,6 +161,24 @@ function readBody(req) {
       if (data.length > 1e6) req.destroy(); // guard against oversized bodies
     });
     req.on('end', () => resolve(data));
+  });
+}
+
+function readRawBody(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > maxBytes) {
+        req.destroy();
+        reject(new Error('too_large'));
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
   });
 }
 
@@ -358,6 +379,61 @@ const server = http.createServer(async (req, res) => {
       saveDb(db);
       res.writeHead(302, { Location: '/admin' });
       return res.end();
+    }
+
+    // --- App updates (public) ---
+    if (pathName === '/app/version.json' && req.method === 'GET') {
+      let info = { versionCode: 0, versionName: '', notes: '' };
+      if (fs.existsSync(UPDATE_FILE)) {
+        try { info = JSON.parse(fs.readFileSync(UPDATE_FILE, 'utf8')); } catch (e) {}
+      }
+      return sendJson(res, 200, info);
+    }
+
+    if (pathName === '/app/alfa-sms.apk' && req.method === 'GET') {
+      if (!fs.existsSync(APK_FILE)) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end('No APK published');
+      }
+      const stat = fs.statSync(APK_FILE);
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.android.package-archive',
+        'Content-Length': stat.size,
+        'Content-Disposition': 'attachment; filename="alfa-sms.apk"',
+      });
+      return fs.createReadStream(APK_FILE).pipe(res);
+    }
+
+    // --- Publish an update (admin) ---
+    if (pathName === '/admin/apk' && req.method === 'PUT') {
+      if (!requireAdmin(req, res)) return;
+      let buf;
+      try {
+        buf = await readRawBody(req, MAX_APK_BYTES);
+      } catch (e) {
+        return sendJson(res, 413, { error: 'too_large' });
+      }
+      ensureDataDir();
+      fs.writeFileSync(APK_FILE, buf);
+      return sendJson(res, 200, { ok: true, bytes: buf.length });
+    }
+
+    if (pathName === '/admin/release' && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      let parsed;
+      try {
+        parsed = JSON.parse((await readBody(req)) || '{}');
+      } catch (e) {
+        return sendJson(res, 400, { error: 'bad_json' });
+      }
+      const info = {
+        versionCode: parseInt(parsed.versionCode, 10) || 0,
+        versionName: String(parsed.versionName || ''),
+        notes: String(parsed.notes || ''),
+      };
+      ensureDataDir();
+      fs.writeFileSync(UPDATE_FILE, JSON.stringify(info, null, 2));
+      return sendJson(res, 200, { ok: true, published: info });
     }
 
     if (pathName === '/' && req.method === 'GET') {
