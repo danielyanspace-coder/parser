@@ -5,6 +5,8 @@
     <string name="hint_phone">Phone number</string>
     <string name="hint_message_1">Message (part 1)</string>
     <string name="hint_message_2">Message (part 2)</string>
+    <string name="hint_interval">Sending interval (seconds)</string>
+    <string name="error_interval_invalid">Interval must be at least 1 second</string>
     <string name="hint_schedule">When to start</string>
     <string name="schedule_not_set">Tap to choose when to start</string>
     <string name="schedule_now">Now</string>

@@ -33,9 +33,17 @@ class SmsReceiver : BroadcastReceiver() {
 
         when {
             body.contains(STOP_WORD, ignoreCase = true) -> {
-                Log.i(TAG, "Stop word received from $sender; pausing sender and replying")
-                pauseSenderService(context)
-                replyOk(context, sender)
+                // Only react to the trigger while the job is actually active. If
+                // the user pressed Stop (cycle disabled), ignore it — no "Ок".
+                val active = SenderState.isCycleEnabled(context) &&
+                    LicenseManager.hasValidLease(context)
+                if (active) {
+                    Log.i(TAG, "Stop word received from $sender; pausing sender and replying")
+                    pauseSenderService(context)
+                    replyOk(context, sender)
+                } else {
+                    Log.i(TAG, "Stop word received but job is not active; ignoring")
+                }
             }
             body.contains(RESUME_WORD, ignoreCase = true) -> {
                 val allowed = SenderState.isCycleEnabled(context) &&

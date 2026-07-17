@@ -5,6 +5,8 @@
     <string name="hint_phone">Номер телефона</string>
     <string name="hint_message_1">Сообщение (часть 1)</string>
     <string name="hint_message_2">Сообщение (часть 2)</string>
+    <string name="hint_interval">Интервал отправки (секунды)</string>
+    <string name="error_interval_invalid">Интервал должен быть не меньше 1 секунды</string>
     <string name="hint_schedule">Когда начать работу</string>
     <string name="schedule_not_set">Нажмите, чтобы выбрать время старта</string>
     <string name="schedule_now">Сейчас</string>

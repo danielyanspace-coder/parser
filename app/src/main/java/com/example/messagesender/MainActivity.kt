@@ -2,7 +2,6 @@ package com.example.messagesender
 
 import android.Manifest
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Rect
@@ -65,6 +64,11 @@ class MainActivity : AppCompatActivity() {
         binding.buttonSchedule.setOnClickListener { onScheduleClicked() }
         binding.buttonStart.setOnClickListener { onStartClicked() }
         binding.buttonStop.setOnClickListener { stopSending() }
+
+        // Quick-pick interval chips fill the open interval field.
+        binding.chip5.setOnClickListener { binding.editInterval.setText("5") }
+        binding.chip10.setOnClickListener { binding.editInterval.setText("10") }
+        binding.chip15.setOnClickListener { binding.editInterval.setText("15") }
 
         LicenseRefreshScheduler.schedule(this)
         UpdateManager.checkForUpdate(this)
@@ -192,37 +196,57 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun pickDateTime() {
-        val now = Calendar.getInstance()
         val initial = if (scheduledAtMillis > 0) {
             Calendar.getInstance().apply { timeInMillis = scheduledAtMillis }
-        } else now
+        } else {
+            Calendar.getInstance()
+        }
 
         DatePickerDialog(
             this,
-            { _, year, month, day ->
-                TimePickerDialog(
-                    this,
-                    { _, hour, minute ->
-                        val chosen = Calendar.getInstance().apply {
-                            set(year, month, day, hour, minute, 0)
-                            set(Calendar.MILLISECOND, 0)
-                        }
-                        scheduledAtMillis = chosen.timeInMillis
-                        val d = Date(scheduledAtMillis)
-                        val text = DateFormat.getMediumDateFormat(this).format(d) + " " +
-                            DateFormat.getTimeFormat(this).format(d)
-                        binding.buttonSchedule.text = text
-                    },
-                    initial.get(Calendar.HOUR_OF_DAY),
-                    initial.get(Calendar.MINUTE),
-                    DateFormat.is24HourFormat(this)
-                ).show()
-            },
+            { _, year, month, day -> pickTimeWithSeconds(year, month, day, initial) },
             initial.get(Calendar.YEAR),
             initial.get(Calendar.MONTH),
             initial.get(Calendar.DAY_OF_MONTH)
         ).show()
     }
+
+    /** Time picker with a seconds wheel (HH:mm:ss), which the stock dialog lacks. */
+    private fun pickTimeWithSeconds(year: Int, month: Int, day: Int, initial: Calendar) {
+        val view = layoutInflater.inflate(R.layout.dialog_time_seconds, null)
+        val hourPicker = view.findViewById<android.widget.NumberPicker>(R.id.pickerHour)
+        val minutePicker = view.findViewById<android.widget.NumberPicker>(R.id.pickerMinute)
+        val secondPicker = view.findViewById<android.widget.NumberPicker>(R.id.pickerSecond)
+
+        hourPicker.minValue = 0; hourPicker.maxValue = 23
+        minutePicker.minValue = 0; minutePicker.maxValue = 59
+        secondPicker.minValue = 0; secondPicker.maxValue = 59
+        val twoDigits = android.widget.NumberPicker.Formatter { String.format("%02d", it) }
+        hourPicker.setFormatter(twoDigits)
+        minutePicker.setFormatter(twoDigits)
+        secondPicker.setFormatter(twoDigits)
+        hourPicker.value = initial.get(Calendar.HOUR_OF_DAY)
+        minutePicker.value = initial.get(Calendar.MINUTE)
+        secondPicker.value = 0
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.hint_schedule)
+            .setView(view)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val chosen = Calendar.getInstance().apply {
+                    set(year, month, day, hourPicker.value, minutePicker.value, secondPicker.value)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                scheduledAtMillis = chosen.timeInMillis
+                binding.buttonSchedule.text = formatSchedule(scheduledAtMillis)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun formatSchedule(millis: Long): String =
+        java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault())
+            .format(Date(millis))
 
     // --- Sending ---
 
@@ -247,6 +271,11 @@ class MainActivity : AppCompatActivity() {
         }
         if (message2.isBlank()) {
             binding.editMessage2.error = getString(R.string.error_message2_required)
+            return
+        }
+        val intervalSeconds = binding.editInterval.text?.toString()?.trim()?.toLongOrNull() ?: 0L
+        if (intervalSeconds < 1) {
+            binding.editInterval.error = getString(R.string.error_interval_invalid)
             return
         }
         if (scheduledAtMillis <= 0L) {
@@ -291,18 +320,21 @@ class MainActivity : AppCompatActivity() {
         val message2 = binding.editMessage2.text?.toString()?.trim().orEmpty()
         // The two fields are sent as one message, joined by a space.
         val message = "$message1 $message2"
+        val intervalSeconds = binding.editInterval.text?.toString()?.trim()?.toLongOrNull() ?: 15L
+        val intervalMs = intervalSeconds * 1000L
 
-        SenderState.save(this, phone, message)
+        SenderState.save(this, phone, message, intervalMs)
         ScheduleManager.scheduleStart(this, scheduledAtMillis)
 
         val startedNow = scheduledAtMillis <= System.currentTimeMillis()
         if (startedNow) {
             Toast.makeText(this, R.string.started_now, Toast.LENGTH_SHORT).show()
         } else {
-            val d = Date(scheduledAtMillis)
-            val when_ = DateFormat.getMediumDateFormat(this).format(d) + " " +
-                DateFormat.getTimeFormat(this).format(d)
-            Toast.makeText(this, getString(R.string.scheduled_for, when_), Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                getString(R.string.scheduled_for, formatSchedule(scheduledAtMillis)),
+                Toast.LENGTH_LONG
+            ).show()
         }
 
         binding.buttonStart.isEnabled = false

@@ -13,19 +13,26 @@ object SenderState {
     private const val PREFS = "sender_state"
     private const val KEY_PHONE = "phone"
     private const val KEY_MESSAGE = "message"
+    private const val KEY_INTERVAL_MS = "interval_ms"
     private const val KEY_CYCLE_ENABLED = "cycle_enabled"
+
+    private const val DEFAULT_INTERVAL_MS = 15_000L
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /** Saves the current sending parameters and marks the cycle as enabled. */
-    fun save(context: Context, phone: String, message: String) {
+    fun save(context: Context, phone: String, message: String, intervalMs: Long) {
         prefs(context).edit()
             .putString(KEY_PHONE, phone)
             .putString(KEY_MESSAGE, message)
+            .putLong(KEY_INTERVAL_MS, intervalMs)
             .putBoolean(KEY_CYCLE_ENABLED, true)
             .apply()
     }
+
+    fun intervalMs(context: Context): Long =
+        prefs(context).getLong(KEY_INTERVAL_MS, DEFAULT_INTERVAL_MS)
 
     fun setCycleEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_CYCLE_ENABLED, enabled).apply()

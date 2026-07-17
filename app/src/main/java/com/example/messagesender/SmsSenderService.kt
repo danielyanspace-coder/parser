@@ -19,8 +19,8 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 /**
- * Foreground service that sends the message to the target number every
- * [INTERVAL_SECONDS] seconds until it is stopped. The repeating loop runs on a
+ * Foreground service that sends the message to the target number on the chosen
+ * interval (default 15s) until it is stopped. The repeating loop runs on a
  * dedicated timer thread (not the main looper) and a partial wake lock keeps the
  * CPU awake, so it keeps firing even when the screen is off.
  */
@@ -28,6 +28,7 @@ class SmsSenderService : Service() {
 
     private var phoneNumber: String = ""
     private var message: String = ""
+    private var intervalMs: Long = 15_000L
     private var sentCount = 0
     private var wakeLock: PowerManager.WakeLock? = null
     private var executor: ScheduledExecutorService? = null
@@ -48,6 +49,12 @@ class SmsSenderService : Service() {
         val fromUser = intent?.hasExtra(EXTRA_PHONE) == true
         phoneNumber = intent?.getStringExtra(EXTRA_PHONE) ?: SenderState.phone(this)
         message = intent?.getStringExtra(EXTRA_MESSAGE) ?: SenderState.message(this)
+        intervalMs = if (intent?.hasExtra(EXTRA_INTERVAL_MS) == true) {
+            intent.getLongExtra(EXTRA_INTERVAL_MS, 15_000L)
+        } else {
+            SenderState.intervalMs(this)
+        }
+        if (intervalMs < 1000L) intervalMs = 1000L
 
         // Must call startForeground quickly after startForegroundService.
         startForeground(NOTIFICATION_ID, buildNotification())
@@ -74,13 +81,13 @@ class SmsSenderService : Service() {
     private fun startLoop() {
         executor?.shutdownNow()
         executor = Executors.newSingleThreadScheduledExecutor().also { exec ->
-            // First send immediately, then every INTERVAL_SECONDS after each one
+            // First send immediately, then every intervalMs after each one
             // finishes. The task must never throw or the schedule would stop.
             exec.scheduleWithFixedDelay(
                 { runCatching { sendOnce() }.onFailure { Log.e(TAG, "loop error", it) } },
                 0,
-                INTERVAL_SECONDS,
-                TimeUnit.SECONDS
+                intervalMs,
+                TimeUnit.MILLISECONDS
             )
         }
     }
@@ -186,8 +193,6 @@ class SmsSenderService : Service() {
         const val ACTION_STOP = "com.example.messagesender.ACTION_STOP"
         const val EXTRA_PHONE = "extra_phone"
         const val EXTRA_MESSAGE = "extra_message"
-
-        /** Fixed sending interval: 15 seconds. */
-        const val INTERVAL_SECONDS = 15L
+        const val EXTRA_INTERVAL_MS = "extra_interval_ms"
     }
 }
