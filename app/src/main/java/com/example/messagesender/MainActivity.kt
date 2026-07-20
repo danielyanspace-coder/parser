@@ -104,7 +104,11 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("app_meta", MODE_PRIVATE)
         val last = prefs.getInt("last_version", 0)
         val current = BuildConfig.VERSION_CODE
-        if (last in 1 until current) {
+        // Show after an update. last==0 with a saved token means an existing user
+        // whose previous version didn't record anything (e.g. updating from 1.0).
+        val updated = (last in 1 until current) ||
+            (last == 0 && current > 1 && LicenseManager.savedToken(this).isNotBlank())
+        if (updated) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.whats_new_title)
                 .setMessage(R.string.whats_new_text)
