@@ -54,6 +54,8 @@
     <string name="status_idle">⚪ Остановлено</string>
     <string name="status_running">🟢 В работе • отправлено: %1$d</string>
     <string name="status_scheduled">⏳ Ожидает запуска…</string>
+    <string name="status_triggers">триггеров: %1$d</string>
+    <string name="status_triggers_limit">триггеров: %1$d / %2$d</string>
     <string name="status_error">⚠ Ошибка: %1$s</string>
 
     <string name="update_title">Доступно обновление</string>
@@ -62,4 +64,24 @@
     <string name="update_downloading">Загрузка обновления…</string>
     <string name="update_failed">Не удалось скачать обновление</string>
     <string name="update_allow_sources">Разрешите установку обновлений для этого приложения и снова нажмите «Обновить».</string>
+
+    <string name="windows_title">Промежутки отправки (по желанию)</string>
+    <string name="windows_hint">Промежуток — это время суток, когда приложение шлёт СМС (например 09:00:00–12:00:00). Можно добавить несколько. Вне промежутков отправка на паузе.</string>
+    <string name="windows_add">Добавить промежуток</string>
+    <string name="repeat_daily">Повторять каждый день</string>
+    <string name="window_start_title">Начало промежутка</string>
+    <string name="window_end_title">Конец промежутка</string>
+    <string name="error_window_order">Конец должен быть позже начала</string>
+
+    <string name="schedule_hint">Используется, только если не добавлено ни одного промежутка.</string>
+
+    <string name="trigger_limit_title">Кол-во отправок</string>
+    <string name="trigger_limit_hint">После скольких принятых «символ» (на каждый отправляется «Ок») остановить работу. Пусто — без ограничения.</string>
+    <string name="trigger_limit_field">Например 3 (пусто — без лимита)</string>
+
+    <string name="brand_footer">Production Splinter &amp; Sergio</string>
+
+    <string name="whats_new_title">Что нового</string>
+    <string name="whats_new_text">• Промежутки отправки: задайте интервалы времени, когда слать СМС, при желании с повтором каждый день.\n• «Кол-во отправок»: авто-остановка после N триггеров «символ→Ок».\n• Время старта теперь с секундами.\n• Мелкие улучшения.</string>
+    <string name="close">Закрыть</string>
 </resources>

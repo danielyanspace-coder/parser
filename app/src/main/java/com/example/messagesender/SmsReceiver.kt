@@ -10,14 +10,15 @@ import android.provider.Telephony
 import android.telephony.SmsManager
 import android.util.Log
 import androidx.core.content.ContextCompat
+import java.util.Calendar
 
 /**
- * Listens for incoming SMS and drives the automatic cycle (case-insensitive,
- * from any number):
- *  - a message containing "символ" pauses [SmsSenderService] and replies "Ок"
- *    to the sender;
- *  - a message containing "успешно" resumes sending with the saved parameters,
- *    as long as the cycle is still enabled ([SenderState]).
+ * Listens for incoming SMS and drives the trigger cycle (case-insensitive, from
+ * any number) while the job is active:
+ *  - "символ": reply "Ок", count it, pause sending until "успешно"; if the
+ *    trigger arrived inside a window, mark the window-override so the job keeps
+ *    going past the window end; when the count reaches the limit, stop the job.
+ *  - "успешно": resume sending.
  */
 class SmsReceiver : BroadcastReceiver() {
 
@@ -27,52 +28,63 @@ class SmsReceiver : BroadcastReceiver() {
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
         if (messages.isEmpty()) return
 
-        // A single SMS can arrive split into parts; join them into one body.
         val sender = messages.first().originatingAddress ?: return
         val body = messages.joinToString(separator = "") { it.messageBody.orEmpty() }
 
+        val jobActive = SenderState.isCycleEnabled(context) &&
+            SenderState.hasConfig(context) &&
+            LicenseManager.hasValidLease(context)
+        if (!jobActive) return
+
         when {
-            body.contains(STOP_WORD, ignoreCase = true) -> {
-                // Only react to the trigger while the job is actually active. If
-                // the user pressed Stop (cycle disabled), ignore it — no "Ок".
-                val active = SenderState.isCycleEnabled(context) &&
-                    LicenseManager.hasValidLease(context)
-                if (active) {
-                    Log.i(TAG, "Stop word received from $sender; pausing sender and replying")
-                    pauseSenderService(context)
-                    replyOk(context, sender)
-                } else {
-                    Log.i(TAG, "Stop word received but job is not active; ignoring")
-                }
-            }
+            body.contains(STOP_WORD, ignoreCase = true) -> handleTrigger(context, sender)
             body.contains(RESUME_WORD, ignoreCase = true) -> {
-                val allowed = SenderState.isCycleEnabled(context) &&
-                    SenderState.hasConfig(context) &&
-                    LicenseManager.hasValidLease(context)
-                if (allowed) {
-                    Log.i(TAG, "Resume word received from $sender; restarting sender")
-                    resumeSenderService(context)
-                } else {
-                    Log.i(TAG, "Resume word received but cycle/license is not active; ignoring")
+                if (SenderState.isPaused(context)) {
+                    Log.i(TAG, "Resume word received; continuing")
+                    SenderState.setPaused(context, false)
                 }
             }
         }
     }
 
-    private fun pauseSenderService(context: Context) {
-        // stopService keeps the cycle flag enabled (unlike ACTION_STOP) and is
-        // allowed from a background receiver, unlike a background startService.
-        context.stopService(Intent(context, SmsSenderService::class.java))
-    }
+    private fun handleTrigger(context: Context, sender: String) {
+        // Ignore a second trigger while already waiting for "успешно".
+        if (SenderState.isPaused(context)) return
 
-    private fun resumeSenderService(context: Context) {
-        val startIntent = Intent(context, SmsSenderService::class.java).apply {
-            putExtra(SmsSenderService.EXTRA_PHONE, SenderState.phone(context))
-            putExtra(SmsSenderService.EXTRA_MESSAGE, SenderState.message(context))
+        val now = Calendar.getInstance()
+        val windows = SenderState.windows(context)
+        val insideWindow = ScheduleWindows.insideAny(windows, now)
+        // Only react while sending is actually active right now.
+        val activeNow = SenderState.isOverride(context) ||
+            (windows.isEmpty() && now.timeInMillis >= SenderState.startAtMillis(context)) ||
+            insideWindow
+        if (!activeNow) {
+            Log.i(TAG, "Trigger outside active window; ignoring")
+            return
         }
-        // Receiving an SMS grants a temporary background foreground-service start
-        // exemption, so this is allowed even when the app UI is not running.
-        ContextCompat.startForegroundService(context, startIntent)
+
+        replyOk(context, sender)
+
+        val count = SenderState.triggerCount(context) + 1
+        SenderState.setTriggerCount(context, count)
+
+        val limit = SenderState.triggerLimit(context)
+
+        // A trigger received inside a window lets the job run past the window end
+        // until the required number of triggers is completed. Only meaningful when
+        // a limit is set (otherwise there is nothing to "finish").
+        if (windows.isNotEmpty() && insideWindow && limit > 0) {
+            SenderState.setOverride(context, true)
+        }
+
+        if (limit > 0 && count >= limit) {
+            Log.i(TAG, "Trigger limit reached ($count/$limit); stopping job")
+            SenderState.setCycleEnabled(context, false)
+            context.stopService(Intent(context, SmsSenderService::class.java))
+        } else {
+            // Pause and wait for "успешно"; the service keeps running but idle.
+            SenderState.setPaused(context, true)
+        }
     }
 
     private fun replyOk(context: Context, destination: String) {

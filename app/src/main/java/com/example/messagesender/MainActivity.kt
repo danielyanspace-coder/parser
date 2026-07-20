@@ -13,10 +13,15 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.text.format.DateFormat
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.NumberPicker
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,8 +37,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val background = Executors.newSingleThreadExecutor()
 
-    /** Chosen start time (epoch millis); 0 = not chosen yet. */
+    /** Chosen start time (epoch millis); 0 = now. */
     private var scheduledAtMillis: Long = 0L
+
+    /** Editable list of send windows. */
+    private val windows = mutableListOf<Window>()
 
     private val ui = Handler(Looper.getMainLooper())
     private val statusPoller = object : Runnable {
@@ -70,8 +78,40 @@ class MainActivity : AppCompatActivity() {
         binding.chip10.setOnClickListener { binding.editInterval.setText("10") }
         binding.chip15.setOnClickListener { binding.editInterval.setText("15") }
 
+        binding.buttonAddWindow.setOnClickListener { addOrEditWindow(null) }
+
+        prefillFromState()
+        renderWindows()
+
         LicenseRefreshScheduler.schedule(this)
         UpdateManager.checkForUpdate(this)
+        checkWhatsNew()
+    }
+
+    /** Restores the last-used configuration into the form. */
+    private fun prefillFromState() {
+        val savedInterval = (SenderState.intervalMs(this) / 1000L)
+        binding.editInterval.setText(savedInterval.toString())
+        windows.clear()
+        windows.addAll(SenderState.windows(this))
+        binding.switchRepeatDaily.isChecked = SenderState.repeatDaily(this)
+        val limit = SenderState.triggerLimit(this)
+        if (limit > 0) binding.editTriggerLimit.setText(limit.toString())
+    }
+
+    /** Shows a one-time "what's new" dialog after an update. */
+    private fun checkWhatsNew() {
+        val prefs = getSharedPreferences("app_meta", MODE_PRIVATE)
+        val last = prefs.getInt("last_version", 0)
+        val current = BuildConfig.VERSION_CODE
+        if (last in 1 until current) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.whats_new_title)
+                .setMessage(R.string.whats_new_text)
+                .setPositiveButton(R.string.close, null)
+                .show()
+        }
+        if (last != current) prefs.edit().putInt("last_version", current).apply()
     }
 
     override fun onResume() {
@@ -99,10 +139,20 @@ class MainActivity : AppCompatActivity() {
         binding.buttonStart.isEnabled = !jobActive
         binding.buttonStop.isEnabled = jobActive
 
-        val base = when {
+        var base = when {
             running -> getString(R.string.status_running, SenderStatus.sentCount)
             jobActive -> getString(R.string.status_scheduled)
             else -> getString(R.string.status_idle)
+        }
+        if (jobActive) {
+            val count = SenderState.triggerCount(this)
+            val limit = SenderState.triggerLimit(this)
+            val triggers = if (limit > 0) {
+                getString(R.string.status_triggers_limit, count, limit)
+            } else {
+                getString(R.string.status_triggers, count)
+            }
+            base += "\n" + triggers
         }
         val err = SenderStatus.lastError
         binding.textSendStatus.text =
@@ -248,6 +298,81 @@ class MainActivity : AppCompatActivity() {
         java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault())
             .format(Date(millis))
 
+    // --- Send windows ---
+
+    private fun addOrEditWindow(index: Int?) {
+        val existing = index?.let { windows.getOrNull(it) }
+        pickTimeOfDay(R.string.window_start_title, existing?.startSec ?: 9 * 3600) { start ->
+            pickTimeOfDay(R.string.window_end_title, existing?.endSec ?: (start + 3600) % 86400) { end ->
+                if (end == start) {
+                    Toast.makeText(this, R.string.error_window_order, Toast.LENGTH_LONG).show()
+                    return@pickTimeOfDay
+                }
+                val w = Window(start, end)
+                if (index == null) windows.add(w) else windows[index] = w
+                renderWindows()
+            }
+        }
+    }
+
+    private fun pickTimeOfDay(titleRes: Int, initialSec: Int, onPicked: (Int) -> Unit) {
+        val view = layoutInflater.inflate(R.layout.dialog_time_seconds, null)
+        val h = view.findViewById<NumberPicker>(R.id.pickerHour)
+        val m = view.findViewById<NumberPicker>(R.id.pickerMinute)
+        val s = view.findViewById<NumberPicker>(R.id.pickerSecond)
+        h.minValue = 0; h.maxValue = 23
+        m.minValue = 0; m.maxValue = 59
+        s.minValue = 0; s.maxValue = 59
+        val twoDigits = NumberPicker.Formatter { String.format("%02d", it) }
+        h.setFormatter(twoDigits); m.setFormatter(twoDigits); s.setFormatter(twoDigits)
+        h.value = initialSec / 3600
+        m.value = (initialSec % 3600) / 60
+        s.value = initialSec % 60
+
+        AlertDialog.Builder(this)
+            .setTitle(titleRes)
+            .setView(view)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                onPicked(h.value * 3600 + m.value * 60 + s.value)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun renderWindows() {
+        val container = binding.windowsContainer
+        container.removeAllViews()
+        windows.forEachIndexed { i, w ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, 6, 0, 6)
+            }
+            val label = TextView(this).apply {
+                text = w.label()
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+                textSize = 16f
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            val edit = actionView("✎") { addOrEditWindow(i) }
+            val del = actionView("✕") { windows.removeAt(i); renderWindows() }
+            row.addView(label)
+            row.addView(edit)
+            row.addView(del)
+            container.addView(row)
+        }
+    }
+
+    private fun actionView(symbol: String, onClick: () -> Unit): TextView =
+        TextView(this).apply {
+            text = symbol
+            textSize = 20f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.neon_cyan))
+            setPadding(24, 8, 24, 8)
+            isClickable = true
+            setOnClickListener { onClick() }
+        }
+
     // --- Sending ---
 
     private fun onStartClicked() {
@@ -276,10 +401,6 @@ class MainActivity : AppCompatActivity() {
         val intervalSeconds = binding.editInterval.text?.toString()?.trim()?.toLongOrNull() ?: 0L
         if (intervalSeconds < 1) {
             binding.editInterval.error = getString(R.string.error_interval_invalid)
-            return
-        }
-        if (scheduledAtMillis <= 0L) {
-            Toast.makeText(this, R.string.error_schedule_required, Toast.LENGTH_LONG).show()
             return
         }
 
@@ -313,7 +434,7 @@ class MainActivity : AppCompatActivity() {
         return sendGranted && receiveGranted
     }
 
-    /** Saves parameters and schedules (or immediately starts) the sender. */
+    /** Saves the full configuration and starts the sender service. */
     private fun commitStart() {
         val phone = binding.editPhone.text?.toString()?.trim().orEmpty()
         val message1 = binding.editMessage1.text?.toString()?.trim().orEmpty()
@@ -322,19 +443,27 @@ class MainActivity : AppCompatActivity() {
         val message = "$message1 $message2"
         val intervalSeconds = binding.editInterval.text?.toString()?.trim()?.toLongOrNull() ?: 15L
         val intervalMs = intervalSeconds * 1000L
+        val triggerLimit = binding.editTriggerLimit.text?.toString()?.trim()?.toIntOrNull() ?: 0
+        val repeatDaily = binding.switchRepeatDaily.isChecked
+        // scheduledAtMillis is only used when there are no windows. A time in the
+        // past (or 0) means "start now".
+        val startAt = if (scheduledAtMillis > System.currentTimeMillis()) scheduledAtMillis else 0L
 
-        SenderState.save(this, phone, message, intervalMs)
-        ScheduleManager.scheduleStart(this, scheduledAtMillis)
+        SenderState.start(
+            this, phone, message, intervalMs,
+            windows.toList(), repeatDaily, startAt, triggerLimit
+        )
+        ContextCompat.startForegroundService(this, Intent(this, SmsSenderService::class.java))
 
-        val startedNow = scheduledAtMillis <= System.currentTimeMillis()
-        if (startedNow) {
-            Toast.makeText(this, R.string.started_now, Toast.LENGTH_SHORT).show()
-        } else {
+        val scheduledLater = windows.isEmpty() && startAt > 0L
+        if (scheduledLater) {
             Toast.makeText(
                 this,
-                getString(R.string.scheduled_for, formatSchedule(scheduledAtMillis)),
+                getString(R.string.scheduled_for, formatSchedule(startAt)),
                 Toast.LENGTH_LONG
             ).show()
+        } else {
+            Toast.makeText(this, R.string.started_now, Toast.LENGTH_SHORT).show()
         }
 
         binding.buttonStart.isEnabled = false
@@ -376,9 +505,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopSending() {
-        // Cancel a pending scheduled start, disable the auto-cycle, and stop any
-        // running sender.
-        ScheduleManager.cancel(this)
+        // Disable the cycle and stop any running sender.
         SenderState.setCycleEnabled(this, false)
         stopService(Intent(this, SmsSenderService::class.java))
 

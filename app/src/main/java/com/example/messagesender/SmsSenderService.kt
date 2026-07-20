@@ -12,24 +12,23 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.telephony.SmsManager
 import android.util.Log
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import java.util.Calendar
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 /**
- * Foreground service that sends the message to the target number on the chosen
- * interval (default 15s) until it is stopped. The repeating loop runs on a
- * dedicated timer thread (not the main looper) and a partial wake lock keeps the
- * CPU awake, so it keeps firing even when the screen is off.
+ * Foreground service that drives the whole sending job: it sends on the chosen
+ * interval, but only while "allowed" (inside a send window, or immediately/at the
+ * scheduled time when no windows are set), pauses while waiting for "успешно",
+ * and stops when the trigger limit is reached or the windows are done.
+ *
+ * The loop runs on a dedicated timer thread and a partial wake lock keeps the CPU
+ * awake so it keeps ticking with the screen off.
  */
 class SmsSenderService : Service() {
 
-    private var phoneNumber: String = ""
-    private var message: String = ""
-    private var intervalMs: Long = 15_000L
-    private var sentCount = 0
     private var wakeLock: PowerManager.WakeLock? = null
     private var executor: ScheduledExecutorService? = null
 
@@ -37,36 +36,17 @@ class SmsSenderService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            // A real user stop (notification button or the Stop button).
             SenderState.setCycleEnabled(this, false)
             stopSelf()
             return START_NOT_STICKY
         }
 
-        // A fresh start passes the phone/message as extras. A system restart via
-        // START_STICKY passes a null intent — resume from the saved config, but
-        // only if the job was not stopped by the user.
-        val fromUser = intent?.hasExtra(EXTRA_PHONE) == true
-        phoneNumber = intent?.getStringExtra(EXTRA_PHONE) ?: SenderState.phone(this)
-        message = intent?.getStringExtra(EXTRA_MESSAGE) ?: SenderState.message(this)
-        intervalMs = if (intent?.hasExtra(EXTRA_INTERVAL_MS) == true) {
-            intent.getLongExtra(EXTRA_INTERVAL_MS, 15_000L)
-        } else {
-            SenderState.intervalMs(this)
-        }
-        if (intervalMs < 1000L) intervalMs = 1000L
-
-        // Must call startForeground quickly after startForegroundService.
         startForeground(NOTIFICATION_ID, buildNotification())
 
-        val configured = phoneNumber.isNotBlank() && message.isNotBlank()
-        val licensed = LicenseManager.hasValidLease(this)
-        val notStopped = fromUser || SenderState.isCycleEnabled(this)
-
-        if (!configured || !licensed || !notStopped) {
-            if (configured && !licensed) {
-                Toast.makeText(this, R.string.license_required, Toast.LENGTH_LONG).show()
-            }
+        val ok = SenderState.hasConfig(this) &&
+            SenderState.isCycleEnabled(this) &&
+            LicenseManager.hasValidLease(this)
+        if (!ok) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -80,25 +60,70 @@ class SmsSenderService : Service() {
 
     private fun startLoop() {
         executor?.shutdownNow()
-        executor = Executors.newSingleThreadScheduledExecutor().also { exec ->
-            // First send immediately, then every intervalMs after each one
-            // finishes. The task must never throw or the schedule would stop.
-            exec.scheduleWithFixedDelay(
-                { runCatching { sendOnce() }.onFailure { Log.e(TAG, "loop error", it) } },
-                0,
-                intervalMs,
-                TimeUnit.MILLISECONDS
-            )
+        executor = Executors.newSingleThreadScheduledExecutor()
+        scheduleTick(0)
+    }
+
+    private fun scheduleTick(delayMs: Long) {
+        val exec = executor ?: return
+        if (exec.isShutdown) return
+        exec.schedule(
+            { runCatching { tick() }.onFailure { Log.e(TAG, "tick error", it) } },
+            delayMs,
+            TimeUnit.MILLISECONDS
+        )
+    }
+
+    private fun tick() {
+        if (!SenderState.isCycleEnabled(this) || !LicenseManager.hasValidLease(this)) {
+            finishJob()
+            return
+        }
+
+        val limit = SenderState.triggerLimit(this)
+        val count = SenderState.triggerCount(this)
+        if (limit > 0 && count >= limit) {
+            finishJob()
+            return
+        }
+
+        // Paused while waiting for the "успешно" reply.
+        if (SenderState.isPaused(this)) {
+            scheduleTick(IDLE_MS)
+            return
+        }
+
+        val now = Calendar.getInstance()
+        val windows = SenderState.windows(this)
+        val override = SenderState.isOverride(this)
+        val allowed = when {
+            override -> true
+            windows.isEmpty() -> now.timeInMillis >= SenderState.startAtMillis(this)
+            else -> ScheduleWindows.insideAny(windows, now)
+        }
+
+        if (allowed) {
+            sendOnce()
+            scheduleTick(SenderState.intervalMs(this))
+        } else {
+            // Outside a window and not overriding. If windows don't repeat and the
+            // day's windows are over, the job is done.
+            if (windows.isNotEmpty() && !SenderState.repeatDaily(this) &&
+                ScheduleWindows.pastAllWindowsToday(windows, now)
+            ) {
+                finishJob()
+                return
+            }
+            scheduleTick(IDLE_MS)
         }
     }
 
+    private fun finishJob() {
+        SenderState.setCycleEnabled(this, false)
+        stopSelf()
+    }
+
     private fun sendOnce() {
-        // Stop if the license expired or was revoked.
-        if (!LicenseManager.hasValidLease(this)) {
-            Log.i(TAG, "Lease expired; stopping sender")
-            stopSelf()
-            return
-        }
         try {
             val smsManager: SmsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 getSystemService(SmsManager::class.java)
@@ -106,17 +131,18 @@ class SmsSenderService : Service() {
                 @Suppress("DEPRECATION")
                 SmsManager.getDefault()
             }
+            val phone = SenderState.phone(this)
+            val message = SenderState.message(this)
             val parts = smsManager.divideMessage(message)
             if (parts.size > 1) {
-                smsManager.sendMultipartTextMessage(phoneNumber, null, parts, null, null)
+                smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
             } else {
-                smsManager.sendTextMessage(phoneNumber, null, message, null, null)
+                smsManager.sendTextMessage(phone, null, message, null, null)
             }
-            sentCount++
-            SenderStatus.sentCount = sentCount
+            SenderStatus.sentCount += 1
             SenderStatus.lastSentAt = System.currentTimeMillis()
             SenderStatus.lastError = null
-            Log.i(TAG, "Sent SMS #$sentCount to $phoneNumber")
+            Log.i(TAG, "Sent SMS #${SenderStatus.sentCount} to $phone")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send SMS", e)
             SenderStatus.lastError = e.message ?: e.javaClass.simpleName
@@ -128,7 +154,7 @@ class SmsSenderService : Service() {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AlfaSms::sender").apply {
             setReferenceCounted(false)
-            acquire(6 * 60 * 60 * 1000L) // safety timeout: 6 hours
+            acquire(12 * 60 * 60 * 1000L) // safety timeout: 12 hours
         }
     }
 
@@ -145,7 +171,6 @@ class SmsSenderService : Service() {
             this, 0, stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
         val openPendingIntent = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -153,7 +178,7 @@ class SmsSenderService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.notification_title))
-            .setContentText(getString(R.string.notification_text, phoneNumber))
+            .setContentText(getString(R.string.notification_text, SenderState.phone(this)))
             .setSmallIcon(android.R.drawable.ic_menu_send)
             .setOngoing(true)
             .setContentIntent(openPendingIntent)
@@ -191,8 +216,8 @@ class SmsSenderService : Service() {
         const val NOTIFICATION_ID = 1
 
         const val ACTION_STOP = "com.example.messagesender.ACTION_STOP"
-        const val EXTRA_PHONE = "extra_phone"
-        const val EXTRA_MESSAGE = "extra_message"
-        const val EXTRA_INTERVAL_MS = "extra_interval_ms"
+
+        /** How often to re-check while idle (outside a window or paused). */
+        private const val IDLE_MS = 10_000L
     }
 }

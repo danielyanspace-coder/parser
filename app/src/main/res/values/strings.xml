@@ -54,6 +54,8 @@
     <string name="status_idle">⚪ Stopped</string>
     <string name="status_running">🟢 Working • sent: %1$d</string>
     <string name="status_scheduled">⏳ Waiting to start…</string>
+    <string name="status_triggers">triggers: %1$d</string>
+    <string name="status_triggers_limit">triggers: %1$d / %2$d</string>
     <string name="status_error">⚠ Error: %1$s</string>
 
     <string name="update_title">Update available</string>
@@ -62,4 +64,24 @@
     <string name="update_downloading">Downloading update…</string>
     <string name="update_failed">Update download failed</string>
     <string name="update_allow_sources">Allow installing updates for this app, then tap Update again.</string>
+
+    <string name="windows_title">Send windows (optional)</string>
+    <string name="windows_hint">A window is a time of day when SMS are sent (e.g. 09:00:00–12:00:00). You can add several. Outside the windows sending is paused.</string>
+    <string name="windows_add">Add window</string>
+    <string name="repeat_daily">Repeat every day</string>
+    <string name="window_start_title">Window start</string>
+    <string name="window_end_title">Window end</string>
+    <string name="error_window_order">The end must be later than the start</string>
+
+    <string name="schedule_hint">Used only when no windows are added.</string>
+
+    <string name="trigger_limit_title">Number of sends</string>
+    <string name="trigger_limit_hint">After how many received \"символ\" (each answered with \"Ок\") to stop the job. Empty = no limit.</string>
+    <string name="trigger_limit_field">e.g. 3 (empty = unlimited)</string>
+
+    <string name="brand_footer">Production Splinter &amp; Sergio</string>
+
+    <string name="whats_new_title">What\'s new</string>
+    <string name="whats_new_text">• Send windows: set the time ranges when SMS are sent, optionally every day.\n• \"Number of sends\": auto-stop after N \"символ→Ок\" triggers.\n• Start time now includes seconds.\n• Small improvements.</string>
+    <string name="close">Close</string>
 </resources>
