@@ -18,13 +18,12 @@ android {
 
         // === License server configuration ===
         // SERVER_URL can be overridden at build time with -PserverUrl=...
-        // (used for the permanent domain, e.g. https://sms.alfa-vpn.ru).
         val serverUrl = (project.findProperty("serverUrl") as String?)
-            ?: "https://your-server.example.com"
-        // The server's public key (stable as long as server/data/keys.json is
-        // kept). Overridable with -PlicenseKey=...
+            ?: "https://sms.sensadog.ru"
+        // The server's public key (stable as long as the server keeps its signing
+        // key). Overridable with -PlicenseKey=...
         val licenseKey = (project.findProperty("licenseKey") as String?)
-            ?: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+/8SgSzWA2a/NQu2uDH0vBgaY4M4VWtAnUPkkUXyw+VWeSxJVx7BCSzdPYthzC/LKr/+zi7xLBdnYzA60iqZEQ=="
+            ?: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/HJFDjQj/ChiGjXcjB80exLdAeJD1JJ4QW5D1jSlFYqpJrxy5dMHSYwvDT62UbJ3CPNzNkYm54DEDYbQ1Y3Nbw=="
 
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
         buildConfigField("String", "LICENSE_PUBLIC_KEY", "\"$licenseKey\"")
