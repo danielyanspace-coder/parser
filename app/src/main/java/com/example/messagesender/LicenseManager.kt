@@ -26,9 +26,18 @@ object LicenseManager {
     private const val PREFS = "license"
     private const val KEY_TOKEN = "token"
     private const val KEY_LEASE_EXP = "lease_exp"
+    private const val KEY_LAST_VALIDATED = "last_validated"
+    private const val KEY_REVOKED = "revoked"
 
     /** Skew tolerance so a device clock slightly behind the server still works. */
     private const val CLOCK_SKEW_MS = 5 * 60 * 1000L
+
+    /**
+     * Grace period: keep working this long after the last successful validation,
+     * even if the server is unreachable — so a server outage does not lock
+     * everyone out. An explicit revocation (403) locks immediately regardless.
+     */
+    private const val GRACE_MS = 7L * 24 * 60 * 60 * 1000
 
     enum class Outcome { VALID, INVALID_OR_DISABLED, NETWORK_ERROR, BAD_SIGNATURE, CONFIG_ERROR }
 
@@ -46,8 +55,23 @@ object LicenseManager {
 
     fun leaseExp(context: Context): Long = prefs(context).getLong(KEY_LEASE_EXP, 0L)
 
-    fun hasValidLease(context: Context): Boolean =
-        leaseExp(context) > System.currentTimeMillis()
+    fun lastValidated(context: Context): Long =
+        prefs(context).getLong(KEY_LAST_VALIDATED, 0L)
+
+    fun isRevoked(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_REVOKED, false)
+
+    /**
+     * Valid while not explicitly revoked AND within the grace window since the
+     * last successful validation. A short server outage therefore keeps working;
+     * a disabled token (revoked) locks immediately.
+     */
+    fun hasValidLease(context: Context): Boolean {
+        if (isRevoked(context)) return false
+        val last = lastValidated(context)
+        if (last <= 0L) return false
+        return System.currentTimeMillis() - last < GRACE_MS
+    }
 
     /** Clears the cached lease (but keeps the token so the user can retry). */
     fun clearLease(context: Context) {
@@ -78,6 +102,8 @@ object LicenseManager {
             prefs(context).edit()
                 .putString(KEY_TOKEN, token)
                 .putLong(KEY_LEASE_EXP, exp)
+                .putLong(KEY_LAST_VALIDATED, System.currentTimeMillis())
+                .putBoolean(KEY_REVOKED, false)
                 .apply()
             return Result(Outcome.VALID, exp)
         }
@@ -97,7 +123,11 @@ object LicenseManager {
             return Result(Outcome.NETWORK_ERROR)
         }
 
-        if (response.code == 403) return Result(Outcome.INVALID_OR_DISABLED)
+        if (response.code == 403) {
+            // Explicit revocation: lock immediately, bypassing the grace window.
+            prefs(context).edit().putBoolean(KEY_REVOKED, true).apply()
+            return Result(Outcome.INVALID_OR_DISABLED)
+        }
         if (response.code != 200 || response.body.isNullOrBlank()) {
             return Result(Outcome.NETWORK_ERROR)
         }
@@ -131,6 +161,8 @@ object LicenseManager {
             prefs(context).edit()
                 .putString(KEY_TOKEN, token)
                 .putLong(KEY_LEASE_EXP, exp)
+                .putLong(KEY_LAST_VALIDATED, System.currentTimeMillis())
+                .putBoolean(KEY_REVOKED, false)
                 .apply()
 
             Result(Outcome.VALID, exp)

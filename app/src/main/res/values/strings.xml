@@ -82,6 +82,6 @@
     <string name="brand_footer">Production Splinter &amp; Sergio</string>
 
     <string name="whats_new_title">What\'s new</string>
-    <string name="whats_new_text">• Send windows: set the time ranges when SMS are sent, optionally every day.\n• \"Number of sends\": auto-stop after N \"символ→Ок\" triggers.\n• Start time now includes seconds.\n• Small improvements.</string>
+    <string name="whats_new_text">• Server-outage resilience: if the server is temporarily unreachable, the app keeps working for up to 7 days instead of locking you out.\n• Minor stability improvements.</string>
     <string name="close">Close</string>
 </resources>
